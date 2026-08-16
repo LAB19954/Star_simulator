@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>COSMOGENESIS // Universal Evolution Engine</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800&family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="style.css">
+
+</head>
+
+
+<body>
+
+
+<!-- THREE.JS SPACE -->
+<canvas id="scene"></canvas>
+
+
+<!-- CINEMATIC EFFECTS -->
+<div class="vignette"></div>
+<div class="grain"></div>
+
+
+
+<!-- INTRO / BOOT SEQUENCE -->
+
+<div class="intro" id="intro">
+
+
+<div class="system-tag">
+DEEP SPACE RESEARCH DIVISION
+</div>
+
+
+<div class="boot-status">
+
+<div>INITIALIZING COSMOGENESIS ENGINE...</div>
+
+<div class="boot-line">✓ THREE.JS RENDER CORE</div>
+<div class="boot-line">✓ PARTICLE FIELD GENERATOR</div>
+<div class="boot-line">✓ STELLAR EVOLUTION MODEL</div>
+<div class="boot-line">✓ COSMIC TIMELINE SYNCHRONIZATION</div>
+
+</div>
+
+
+
+<h1>COSMOGENESIS</h1>
+
+
+<p>
+A real-time 3D journey through 13.8 billion years of universal evolution.
+Trace the birth of matter, formation of stars, and final fate of stellar remnants.
+</p>
+
+
+<div class="controls-note">
+
+DRAG → ORBIT CAMERA  
+&nbsp;·&nbsp;
+SCROLL → ZOOM  
+&nbsp;·&nbsp;
+SPACE → NEXT EVENT
+
+</div>
+
+
+
+<button id="startBtn">
+INITIALIZE UNIVERSE
+</button>
+
+
+
+<div class="credit-line">
+
+MISSION CODE:
+COSMO-R2 // BLITZ TECH // IIT GANDHINAGAR
+
+</div>
+
+
+</div>
+
+
+
+
+
+<!-- STATUS TOAST -->
+
+<div class="toast" id="toast">
+
+MASS LOCKED — COLLAPSE SEQUENCE INITIATED
+
+</div>
+
+
+
+
+
+<!-- TOP COMMAND BAR -->
+
+<div class="topbar">
+
+
+<div class="wordmark">
+
+<span class="dot"></span>
+
+
+<div>
+
+COSMOGENESIS
+
+<div class="sub">
+
+UNIVERSAL EVOLUTION SIMULATION
+
+</div>
+
+
+</div>
+
+
+</div>
+
+
+
+<div class="mission-status">
+
+<div>
+STATUS:
+<span class="online">ONLINE</span>
+</div>
+
+<div>
+RENDER:
+<span id="rendererStatus">WEBGL ACTIVE</span>
+</div>
+
+
+</div>
+
+
+
+<div class="camera-hint" id="camHint">
+
+<b>DRAG</b> ORBIT
+
+<br>
+
+<b>SCROLL</b> ZOOM
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+<!-- LEFT MISSION LOG -->
+
+
+<div class="log-panel">
+
+
+<div class="log-header">
+
+<span>MISSION DATABASE</span>
+
+<span class="rec"></span>
+
+</div>
+
+
+<div class="log-body" id="logBody">
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+<!-- RIGHT TELEMETRY PANEL -->
+
+
+<div class="telemetry-panel">
+
+
+<div class="panel-title">
+
+LIVE COSMIC TELEMETRY
+
+</div>
+
+
+<div class="telemetry-box">
+
+
+<div class="telemetry-item">
+
+<label>COSMIC AGE</label>
+
+<span id="cosmicAge">
+
+T + 0 SEC
+
+</span>
+
+
+</div>
+
+
+
+<div class="telemetry-item">
+
+<label>TEMPERATURE</label>
+
+<span id="temperature">
+
+UNKNOWN
+
+</span>
+
+
+</div>
+
+
+
+<div class="telemetry-item">
+
+<label>MATTER STATE</label>
+
+<span id="matterState">
+
+SINGULARITY
+
+</span>
+
+
+</div>
+
+
+
+<div class="telemetry-item">
+
+<label>SIM PARTICLES</label>
+
+<span id="pCount">
+
+0
+
+</span>
+
+
+</div>
+
+
+
+<div class="telemetry-item">
+
+<label>FPS</label>
+
+<span id="fpsCounter">
+
+60
+
+</span>
+
+
+</div>
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<!-- STELLAR CONTROL CONSOLE -->
+
+
+<div class="console-panel">
+
+
+<h3>
+
+STELLAR MASS INPUT
+
+</h3>
+
+
+
+<div class="mass-readout">
+
+
+<span class="num" id="massNum">
+
+8.0
+
+</span>
+
+
+<span class="unit">
+
+M☉
+
+</span>
+
+
+</div>
+
+
+
+<input 
+type="range"
+id="massSlider"
+min="0.3"
+max="40"
+step="0.1"
+value="8"
+>
+
+
+
+<div class="mass-scale">
+
+<span>0.3</span>
+
+<span>40</span>
+
+</div>
+
+
+
+
+
+<div class="fate-box">
+
+
+<div class="fate-label">
+
+PREDICTED REMNANT
+
+</div>
+
+
+
+<div class="fate-name" id="fateName">
+
+Black Hole
+
+</div>
+
+
+
+<div class="fate-desc" id="fateDesc">
+
+—
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+<div class="telemetry-row">
+
+<span>
+
+Chandrasekhar Limit
+
+</span>
+
+
+<span>
+
+1.4 M☉
+
+</span>
+
+
+</div>
+
+
+
+<div class="telemetry-row">
+
+<span>
+
+TOV Limit
+
+</span>
+
+
+<span>
+
+~2.2–3 M☉
+
+</span>
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<!-- BOTTOM CONTROL DECK -->
+
+
+<div class="deck">
+
+
+<div class="stage-card">
+
+
+<div class="stage-eyebrow" id="stageEyebrow">
+
+T + 0 SECONDS
+
+</div>
+
+
+
+<div class="stage-title" id="stageTitle">
+
+The Singularity
+
+</div>
+
+
+</div>
+
+
+
+
+
+<div class="timeline-track">
+
+
+<div class="timeline-fill" id="timelineFill"></div>
+
+
+<div class="timeline-stops" id="timelineStops"></div>
+
+
+</div>
+
+
+
+
+
+<div class="transport-row">
+
+
+<button class="iconbtn" id="restartBtn">
+
+⟳
+
+</button>
+
+
+
+<button class="navbtn" id="prevBtn">
+
+◀ PREVIOUS
+
+</button>
+
+
+
+
+<button class="navbtn primary" id="nextBtn">
+
+NEXT EVENT ▶
+
+</button>
+
+
+
+
+
+<div class="toggle-group">
+
+
+AUTO
+
+
+<div class="switch" id="autoSwitch">
+
+
+<div class="knob"></div>
+
+
+</div>
+
+
+</div>
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+<!-- ENGINE -->
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+
+<script src="transition.js"></script>
+
+
+</body>
+
+</html>
