@@ -3,204 +3,989 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>COSMOGENESIS // Blithchron Mission Console</title>
-
+<title>COSMOGENESIS — Mission Console</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700;800&family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --void:#030308;
+  --void2:#0a0611;
+  --panel:rgba(16,11,22,0.72);
+  --line:rgba(255,176,0,0.16);
+  --line2:rgba(255,255,255,0.07);
+  --amber:#ffb000;
+  --amber-dim:#c98a2e;
+  --danger:#ff3864;
+  --indigo:#7b61ff;
+  --cream:#f5ecdb;
+  --dim:#9a8f7c;
+  --dim2:#5e5648;
+  --good:#5be49b;
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+html,body{height:100%; overflow:hidden;}
+body{
+  background:var(--void); color:var(--cream);
+  font-family:'Rajdhani',sans-serif; font-weight:500;
+  -webkit-font-smoothing:antialiased;
+}
+#scene{position:fixed; inset:0; display:block; z-index:0; cursor:grab;}
+#scene.dragging{cursor:grabbing;}
+.vignette{position:fixed; inset:0; z-index:1; pointer-events:none;
+  background:radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.6) 100%);}
+.grain{position:fixed; inset:0; z-index:2; pointer-events:none; opacity:0.03;
+  background:repeating-conic-gradient(#fff 0deg 0.1deg, transparent 0.1deg 1deg);}
 
-<link rel="stylesheet" href="style.css">
+::-webkit-scrollbar{width:5px;}
+::-webkit-scrollbar-thumb{background:var(--dim2); border-radius:3px;}
+::-webkit-scrollbar-track{background:transparent;}
+
+/* ---------- top bar ---------- */
+.topbar{position:fixed; top:0; left:0; right:0; z-index:10; display:flex;
+  justify-content:space-between; align-items:flex-start; padding:20px 26px; pointer-events:none;}
+.wordmark{font-family:'Orbitron',sans-serif; font-weight:700; font-size:17px; letter-spacing:0.08em;
+  display:flex; align-items:center; gap:10px; pointer-events:auto; color:var(--cream);}
+.wordmark .dot{width:8px; height:8px; border-radius:50%; background:var(--amber); box-shadow:0 0 10px var(--amber);
+  animation:pulse 2.4s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1;} 50%{opacity:0.35;}}
+.wordmark .sub{font-family:'Share Tech Mono',monospace; font-weight:400; font-size:9.5px; color:var(--dim);
+  letter-spacing:0.1em; margin-top:3px;}
+.camera-hint{font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--dim); text-align:right;
+  pointer-events:auto; line-height:1.7; transition:opacity 1s ease;}
+.camera-hint b{color:var(--amber-dim);}
+
+/* ---------- mission log (left, signature element) ---------- */
+.log-panel{
+  position:fixed; top:76px; left:26px; bottom:150px; z-index:10; width:300px;
+  background:var(--panel); border:1px solid var(--line); border-radius:4px;
+  backdrop-filter:blur(16px) saturate(140%);
+  display:flex; flex-direction:column; box-shadow:0 12px 40px rgba(0,0,0,0.5);
+}
+.log-header{
+  padding:12px 16px; border-bottom:1px solid var(--line);
+  font-family:'Share Tech Mono',monospace; font-size:10px; letter-spacing:0.14em;
+  color:var(--amber-dim); text-transform:uppercase; display:flex; justify-content:space-between; align-items:center;
+  flex-shrink:0;
+}
+.log-header .rec{width:6px; height:6px; border-radius:50%; background:var(--danger); box-shadow:0 0 8px var(--danger); animation:pulse 1.5s ease-in-out infinite;}
+.log-body{overflow-y:auto; padding:14px 16px; flex:1;}
+.log-entry{margin-bottom:16px; padding-bottom:14px; border-bottom:1px dashed var(--line2);}
+.log-entry:last-child{border-bottom:none; margin-bottom:0;}
+.log-entry .idx{font-family:'Share Tech Mono',monospace; font-size:9px; color:var(--dim2); letter-spacing:0.08em;}
+.log-entry .title{font-family:'Orbitron',sans-serif; font-weight:600; font-size:13px; color:var(--amber); margin:4px 0 6px 0; letter-spacing:0.01em;}
+.log-entry .body{font-size:13px; line-height:1.5; color:var(--dim); font-weight:500;}
+.log-entry.active .title{color:var(--cream);}
+.log-entry.active .body{color:var(--cream); opacity:0.85;}
+
+/* ---------- right console ---------- */
+.console-panel{
+  position:fixed; top:76px; right:26px; z-index:10; width:270px;
+  background:var(--panel); border:1px solid var(--line); border-radius:4px;
+  backdrop-filter:blur(16px) saturate(140%); padding:16px 18px;
+  box-shadow:0 12px 40px rgba(0,0,0,0.5);
+}
+.console-panel h3{
+  font-family:'Share Tech Mono',monospace; font-size:9.5px; letter-spacing:0.14em; color:var(--dim2);
+  text-transform:uppercase; margin-bottom:12px; display:flex; justify-content:space-between;
+}
+.mass-readout{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:6px;}
+.mass-readout .num{font-family:'Orbitron',sans-serif; font-size:24px; font-weight:700; color:var(--cream);}
+.mass-readout .unit{font-family:'Share Tech Mono',monospace; font-size:10.5px; color:var(--dim);}
+input[type=range]{-webkit-appearance:none; width:100%; height:3px; border-radius:2px;
+  background:linear-gradient(90deg, var(--indigo), var(--amber) 50%, var(--danger) 100%);
+  outline:none; margin:10px 0 4px 0;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; width:14px; height:14px; border-radius:50%;
+  background:var(--cream); border:2px solid var(--void); cursor:pointer; box-shadow:0 0 10px rgba(245,236,219,0.6);}
+input[type=range]:disabled{opacity:0.3;}
+.mass-scale{display:flex; justify-content:space-between; font-family:'Share Tech Mono',monospace; font-size:9px; color:var(--dim2); margin-bottom:14px;}
+.fate-box{border:1px solid var(--line); border-radius:4px; padding:10px 12px; margin-bottom:14px;}
+.fate-label{font-family:'Share Tech Mono',monospace; color:var(--dim2); font-size:9px; letter-spacing:0.1em; text-transform:uppercase; margin-bottom:4px;}
+.fate-name{font-family:'Orbitron',sans-serif; font-size:13px; font-weight:600;}
+.fate-name.wd{color:var(--indigo);}
+.fate-name.ns{color:#c9a8ff;}
+.fate-name.bh{color:var(--danger);}
+.fate-desc{font-size:12.5px; color:var(--dim); margin-top:5px; line-height:1.45;}
+.telemetry-row{display:flex; justify-content:space-between; padding:5px 0; border-top:1px dashed var(--line2);
+  font-family:'Share Tech Mono',monospace; font-size:10.5px;}
+.telemetry-row span:last-child{color:var(--amber);}
+
+/* ---------- bottom deck ---------- */
+.deck{position:fixed; bottom:0; left:0; right:0; z-index:10; padding:0 26px 22px 26px;
+  display:flex; flex-direction:column; align-items:center; gap:14px;}
+.stage-card{
+  width:min(640px, 90vw); background:var(--panel); border:1px solid var(--line); border-radius:6px;
+  backdrop-filter:blur(16px) saturate(140%); padding:14px 22px; text-align:center;
+  box-shadow:0 12px 40px rgba(0,0,0,0.5);
+}
+.stage-eyebrow{font-family:'Share Tech Mono',monospace; font-size:10px; letter-spacing:0.2em; color:var(--amber-dim); text-transform:uppercase;}
+.stage-title{font-family:'Orbitron',sans-serif; font-weight:700; font-size:clamp(18px,2.6vw,24px); margin-top:6px; color:var(--cream);}
+
+.transport-row{display:flex; align-items:center; gap:12px;}
+.navbtn{
+  font-family:'Share Tech Mono',monospace; font-size:11px; letter-spacing:0.08em;
+  background:rgba(255,255,255,0.04); border:1px solid var(--line); color:var(--cream);
+  padding:0 18px; height:42px; border-radius:30px; cursor:pointer; display:flex; align-items:center; gap:8px;
+  transition:all .15s ease;
+}
+.navbtn:hover{background:rgba(255,176,0,0.1); border-color:var(--amber);}
+.navbtn:disabled{opacity:0.3; cursor:not-allowed;}
+.navbtn.primary{background:var(--amber); color:var(--void); border:none; font-weight:600; box-shadow:0 0 20px rgba(255,176,0,0.35);}
+.navbtn.primary:hover{background:#ffc233;}
+.iconbtn{width:42px; height:42px; border-radius:50%; background:rgba(255,255,255,0.04); border:1px solid var(--line);
+  color:var(--cream); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:14px; transition:all .15s ease;}
+.iconbtn:hover{border-color:var(--amber); background:rgba(255,176,0,0.1);}
+.toggle-group{display:flex; align-items:center; gap:8px; font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--dim);}
+.switch{width:34px; height:18px; border-radius:20px; background:rgba(255,255,255,0.08); position:relative; cursor:pointer; border:1px solid var(--line2); transition:background .2s ease;}
+.switch .knob{width:14px; height:14px; border-radius:50%; background:var(--dim); position:absolute; top:1px; left:2px; transition:all .2s ease;}
+.switch.on{background:rgba(255,176,0,0.25); border-color:var(--amber);}
+.switch.on .knob{left:17px; background:var(--amber);}
+
+.timeline-track{position:relative; width:min(640px,90vw); height:3px; background:rgba(255,255,255,0.08); border-radius:2px;}
+.timeline-fill{position:absolute; top:0; left:0; height:100%; border-radius:2px; background:linear-gradient(90deg, var(--indigo), var(--amber), var(--danger)); width:0%; transition:width .3s ease;}
+.timeline-stops{position:absolute; inset:0; display:flex; justify-content:space-between; align-items:center;}
+.stop{width:9px; height:9px; border-radius:50%; background:var(--void2); border:2px solid var(--dim2); cursor:pointer; transition:all .2s ease;}
+.stop:hover{border-color:var(--cream);}
+.stop.done{background:var(--amber-dim); border-color:var(--amber-dim);}
+.stop.current{background:var(--amber); border-color:var(--amber); box-shadow:0 0 10px var(--amber); transform:scale(1.25);}
+
+/* ---------- intro ---------- */
+.intro{position:fixed; inset:0; z-index:50; background:var(--void); display:flex; flex-direction:column;
+  align-items:center; justify-content:center; text-align:center; transition:opacity .8s ease, visibility .8s ease;}
+.intro.hide{opacity:0; visibility:hidden; pointer-events:none;}
+.intro .eyebrow{font-family:'Share Tech Mono',monospace; font-size:11px; letter-spacing:0.3em; color:var(--amber-dim); margin-bottom:18px;}
+.intro h1{font-family:'Orbitron',sans-serif; font-weight:800; font-size:clamp(34px,6.4vw,64px); letter-spacing:0.02em;
+  background:linear-gradient(120deg, var(--cream), var(--amber) 45%, var(--indigo) 85%);
+  -webkit-background-clip:text; background-clip:text; color:transparent;}
+.intro p{font-family:'Rajdhani',sans-serif; font-weight:500; color:var(--dim); font-size:15px; margin-top:16px;
+  max-width:520px; line-height:1.7;}
+.intro .controls-note{font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--dim2); margin-top:22px; letter-spacing:0.04em;}
+.intro button{margin-top:30px; font-family:'Share Tech Mono',monospace; font-size:12.5px; letter-spacing:0.1em;
+  background:var(--amber); color:var(--void); border:none; padding:15px 36px; border-radius:30px; cursor:pointer;
+  font-weight:700; box-shadow:0 0 30px rgba(255,176,0,0.4); transition:transform .15s ease;}
+.intro button:hover{transform:scale(1.04);}
+.intro .credit-line{position:absolute; bottom:22px; font-family:'Share Tech Mono',monospace; font-size:9.5px; color:var(--dim2); letter-spacing:0.05em;}
+
+.toast{position:fixed; top:20px; left:50%; transform:translateX(-50%) translateY(-140%); z-index:60;
+  background:rgba(16,11,22,0.92); border:1px solid var(--amber); padding:10px 20px; border-radius:30px;
+  font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--amber); letter-spacing:0.04em;
+  transition:transform .4s cubic-bezier(.2,.9,.3,1.3); box-shadow:0 8px 30px rgba(0,0,0,0.5); white-space:nowrap;}
+.toast.show{transform:translateX(-50%) translateY(0);}
+
+@media (max-width:900px){
+  .log-panel{width:220px; bottom:180px;}
+  .console-panel{display:none;}
+  .stage-card{padding:10px 14px;}
+}
+
+/* ===== COSMOGENESIS V2 CINEMATIC ENHANCEMENTS ===== */
+
+.nebula-overlay{
+ position:fixed;
+ inset:-30%;
+ z-index:1;
+ pointer-events:none;
+ background:
+ radial-gradient(circle at 20% 30%,rgba(123,97,255,.18),transparent 35%),
+ radial-gradient(circle at 80% 70%,rgba(255,176,0,.14),transparent 30%),
+ radial-gradient(circle at 50% 50%,rgba(255,80,120,.08),transparent 40%);
+ filter:blur(25px);
+ animation:nebulaMove 40s linear infinite;
+}
+
+@keyframes nebulaMove{
+ from{transform:rotate(0deg) scale(1);}
+ to{transform:rotate(360deg) scale(1.2);}
+}
+
+.cosmic-telemetry{
+ position:fixed;
+ top:76px;
+ left:50%;
+ transform:translateX(-50%);
+ z-index:20;
+ display:flex;
+ gap:8px;
+ font-family:'Share Tech Mono',monospace;
+}
+
+.cosmic-chip{
+ background:rgba(16,11,22,.75);
+ border:1px solid rgba(255,176,0,.25);
+ padding:8px 14px;
+ border-radius:20px;
+ color:#ffb000;
+ backdrop-filter:blur(12px);
+ font-size:11px;
+}
+
+.cosmic-achievement{
+ position:fixed;
+ right:25px;
+ bottom:120px;
+ z-index:40;
+ background:rgba(10,6,17,.9);
+ border:1px solid #ffb000;
+ padding:14px 20px;
+ border-radius:8px;
+ color:#f5ecdb;
+ font-family:'Share Tech Mono',monospace;
+ animation:achievementPop .5s ease;
+}
+
+@keyframes achievementPop{
+ from{opacity:0;transform:translateY(30px);}
+ to{opacity:1;transform:translateY(0);}
+}
+
+</style>
 </head>
-
 <body>
 
 <canvas id="scene"></canvas>
-
 <div class="vignette"></div>
 <div class="grain"></div>
 
 <div class="intro" id="intro">
-
-<div class="system-tag">
-BLITHCHRON // DEEP SPACE RESEARCH DIVISION
+  <div class="eyebrow">MISSION CONSOLE // BLITZ TECH R2</div>
+  <h1>COSMOGENESIS</h1>
+  <p>Step through 13.8 billion years of cosmic history in full 3D — drag to orbit the camera, scroll to zoom, and set the initial mass of a star to decide whether it dies as a white dwarf, a neutron star, or collapses into a black hole.</p>
+  <div class="controls-note">DRAG = ROTATE &nbsp;·&nbsp; SCROLL / PINCH = ZOOM &nbsp;·&nbsp; YOU ADVANCE EACH STAGE MANUALLY</div>
+  <button id="startBtn">LAUNCH SIMULATION</button>
+  <div class="credit-line">BUILT FOR BLITZ TECH · ROUND 2 · IIT GANDHINAGAR</div>
 </div>
 
-<h1>COSMOGENESIS</h1>
-
-<div class="boot-status">
-INITIALIZING COSMOGENESIS ENGINE...
-<br><br>
-✓ THREE.JS RENDER CORE
-<br>
-✓ PARTICLE FIELD GENERATOR
-<br>
-✓ STELLAR EVOLUTION MODEL
-<br>
-✓ COSMIC TIMELINE SYNCHRONIZATION
-</div>
-
-<p>
-A 3D simulation tracing the evolution of the universe from the Planck epoch to stellar remnants.
-</p>
-
-<div class="controls-note">
-DRAG → ORBIT CAMERA · SCROLL → ZOOM · SPACE → NEXT EVENT
-</div>
-
-<button id="startBtn">
-INITIALIZE UNIVERSE
-</button>
-
-<div class="credit-line">
-BLITHCHRON // ROUND 2 // IIT GANDHINAGAR
-</div>
-
-</div>
-
-
-<div class="toast" id="toast">
-MASS LOCKED — COLLAPSE SEQUENCE INITIATED
-</div>
-
+<div class="toast" id="toast">MASS LOCKED — COLLAPSE SEQUENCE INITIATED</div>
 
 <div class="topbar">
-
-<div class="wordmark">
-<span class="dot"></span>
-<div>
-COSMOGENESIS
-<div class="sub">UNIVERSAL EVOLUTION SIMULATION</div>
+  <div class="wordmark"><span class="dot"></span><div>COSMOGENESIS<div class="sub">3D UNIVERSE EVOLUTION ENGINE</div></div></div>
+  <div class="camera-hint" id="camHint"><b>drag</b> to orbit &nbsp;·&nbsp; <b>scroll</b> to zoom</div>
 </div>
-</div>
-
-<div class="mission-status">
-STATUS: <span class="online">ONLINE</span>
-<br>
-RENDER: WEBGL ACTIVE
-</div>
-
-<div class="camera-hint" id="camHint">
-<b>DRAG</b> ORBIT
-<br>
-<b>SCROLL</b> ZOOM
-</div>
-
-</div>
-
 
 <div class="log-panel">
-<div class="log-header">
-<span>MISSION DATABASE</span>
-<span class="rec"></span>
+  <div class="log-header"><span>MISSION LOG</span><span class="rec"></span></div>
+  <div class="log-body" id="logBody"></div>
 </div>
-<div class="log-body" id="logBody"></div>
-</div>
-
-
-<div class="telemetry-panel">
-
-<div class="panel-title">
-LIVE COSMIC TELEMETRY
-</div>
-
-<div class="telemetry-box">
-
-<div class="telemetry-item">
-<label>COSMIC AGE</label>
-<span id="cosmicAge">T + 0 SEC</span>
-</div>
-
-<div class="telemetry-item">
-<label>TEMPERATURE</label>
-<span id="temperature">UNKNOWN</span>
-</div>
-
-<div class="telemetry-item">
-<label>MATTER STATE</label>
-<span id="matterState">SINGULARITY</span>
-</div>
-
-<div class="telemetry-item">
-<label>FPS</label>
-<span id="fpsCounter">60</span>
-</div>
-
-</div>
-</div>
-
 
 <div class="console-panel">
-
-<h3>STELLAR MASS INPUT</h3>
-
-<div class="mass-readout">
-<span class="num" id="massNum">8.0</span>
-<span class="unit">M☉</span>
+  <h3><span>Stellar Mass Input</span></h3>
+  <div class="mass-readout"><span class="num" id="massNum">8.0</span><span class="unit">M☉</span></div>
+  <input type="range" id="massSlider" min="0.3" max="40" step="0.1" value="8">
+  <div class="mass-scale"><span>0.3</span><span>40</span></div>
+  <div class="fate-box">
+    <div class="fate-label">Predicted Remnant</div>
+    <div class="fate-name" id="fateName">Neutron Star</div>
+    <div class="fate-desc" id="fateDesc">—</div>
+  </div>
+  <div class="telemetry-row"><span>Chandrasekhar limit</span><span>1.4 M☉</span></div>
+  <div class="telemetry-row"><span>TOV limit</span><span>~2.2–3 M☉</span></div>
+  <div class="telemetry-row"><span>Sim particles</span><span id="pCount">0</span></div>
 </div>
-
-<input type="range" id="massSlider" min="0.3" max="40" step="0.1" value="8">
-
-<div class="fate-box">
-<div class="fate-label">PREDICTED REMNANT</div>
-<div class="fate-name" id="fateName">Black Hole</div>
-<div class="fate-desc" id="fateDesc">—</div>
-</div>
-
-<div class="telemetry-row">
-<span>Chandrasekhar Limit</span>
-<span>1.4 M☉</span>
-</div>
-
-<div class="telemetry-row">
-<span>TOV Limit</span>
-<span>~2.2–3 M☉</span>
-</div>
-
-<div class="telemetry-row">
-<span>Sim Particles</span>
-<span id="pCount">0</span>
-</div>
-
-</div>
-
 
 <div class="deck">
-
-<div class="stage-card">
-<div class="stage-eyebrow" id="stageEyebrow">T + 0 SECONDS</div>
-<div class="stage-title" id="stageTitle">The Singularity</div>
+  <div class="stage-card">
+    <div class="stage-eyebrow" id="stageEyebrow">T + 0 SECONDS</div>
+    <div class="stage-title" id="stageTitle">The Singularity</div>
+  </div>
+  <div class="timeline-track"><div class="timeline-fill" id="timelineFill"></div><div class="timeline-stops" id="timelineStops"></div></div>
+  <div class="transport-row">
+    <button class="iconbtn" id="restartBtn" title="Restart">⟲</button>
+    <button class="navbtn" id="prevBtn">◀ PREV</button>
+    <button class="navbtn primary" id="nextBtn">NEXT STAGE ▶</button>
+    <div class="toggle-group">AUTO<div class="switch" id="autoSwitch"><div class="knob"></div></div></div>
+  </div>
 </div>
-
-<div class="timeline-track">
-<div class="timeline-fill" id="timelineFill"></div>
-<div class="timeline-stops" id="timelineStops"></div>
-</div>
-
-<div class="transport-row">
-
-<button class="iconbtn" id="restartBtn">⟳</button>
-
-<button class="navbtn" id="prevBtn">
-◀ PREVIOUS
-</button>
-
-<button class="navbtn primary" id="nextBtn">
-NEXT EVENT ▶
-</button>
-
-<div class="toggle-group">
-AUTO
-<div class="switch" id="autoSwitch">
-<div class="knob"></div>
-</div>
-</div>
-
-</div>
-</div>
-
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
-<script src="transition.js"></script>
+<script>
+/* =========================================================================
+   COSMOGENESIS v2 — 3D Universe Evolution Simulator (Three.js)
+   Manual step-through state machine + free orbit/zoom camera.
+   Physics is illustrative, but every named threshold/timescale is real.
+========================================================================= */
 
+let W = window.innerWidth, H = window.innerHeight;
+
+/* ---------------- THREE SETUP ---------------- */
+const canvas = document.getElementById('scene');
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:false});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+renderer.setSize(W,H);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x030308);
+scene.fog = new THREE.FogExp2(0x030308, 0.0011);
+
+const camera = new THREE.PerspectiveCamera(52, W/H, 0.1, 8000);
+
+const ambient = new THREE.AmbientLight(0x8899ff, 0.35);
+scene.add(ambient);
+const coreLight = new THREE.PointLight(0xfff4e0, 0, 900, 2);
+scene.add(coreLight);
+
+/* distant static starfield */
+(function buildStarfield(){
+  const N = 2200;
+  const pos = new Float32Array(N*3);
+  const col = new Float32Array(N*3);
+  for(let i=0;i<N;i++){
+    const r = 1400 + Math.random()*1800;
+    const theta = Math.random()*Math.PI*2;
+    const phi = Math.acos((Math.random()*2)-1);
+    pos[i*3] = r*Math.sin(phi)*Math.cos(theta);
+    pos[i*3+1] = r*Math.cos(phi);
+    pos[i*3+2] = r*Math.sin(phi)*Math.sin(theta);
+    const b = 0.4+Math.random()*0.5;
+    col[i*3]=b; col[i*3+1]=b; col[i*3+2]=b+Math.random()*0.15;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos,3));
+  g.setAttribute('color', new THREE.BufferAttribute(col,3));
+  const m = new THREE.PointsMaterial({size:2.2, vertexColors:true, transparent:true, opacity:0.7, sizeAttenuation:false});
+  scene.add(new THREE.Points(g,m));
+})();
+
+/* ---------------- CUSTOM SHADER PARTICLES ---------------- */
+const VERT = `
+attribute float aSize;
+attribute float aAlpha;
+attribute vec3 aColor;
+varying float vAlpha;
+varying vec3 vColor;
+void main(){
+  vAlpha = aAlpha;
+  vColor = aColor;
+  vec4 mv = modelViewMatrix * vec4(position,1.0);
+  gl_PointSize = aSize * (420.0 / -mv.z);
+  gl_Position = projectionMatrix * mv;
+}`;
+const FRAG = `
+precision mediump float;
+varying float vAlpha;
+varying vec3 vColor;
+void main(){
+  float d = length(gl_PointCoord - vec2(0.5));
+  float glow = smoothstep(0.5, 0.02, d);
+  if(glow <= 0.001) discard;
+  gl_FragColor = vec4(vColor, glow * vAlpha);
+}`;
+
+const MAX_P = 900;
+const posArr = new Float32Array(MAX_P*3);
+const colArr = new Float32Array(MAX_P*3);
+const sizeArr = new Float32Array(MAX_P);
+const alphaArr = new Float32Array(MAX_P);
+const pGeo = new THREE.BufferGeometry();
+pGeo.setAttribute('position', new THREE.BufferAttribute(posArr,3).setUsage(THREE.DynamicDrawUsage));
+pGeo.setAttribute('aColor', new THREE.BufferAttribute(colArr,3).setUsage(THREE.DynamicDrawUsage));
+pGeo.setAttribute('aSize', new THREE.BufferAttribute(sizeArr,1).setUsage(THREE.DynamicDrawUsage));
+pGeo.setAttribute('aAlpha', new THREE.BufferAttribute(alphaArr,1).setUsage(THREE.DynamicDrawUsage));
+pGeo.setDrawRange(0,0);
+const pMat = new THREE.ShaderMaterial({vertexShader:VERT, fragmentShader:FRAG, transparent:true, depthWrite:false, blending:THREE.AdditiveBlending});
+const pointCloud = new THREE.Points(pGeo, pMat);
+scene.add(pointCloud);
+
+function colorToRGB(hex){
+  const c = new THREE.Color(hex);
+  return [c.r,c.g,c.b];
+}
+
+/* glow sprite for star / remnant core */
+function makeGlowTexture(){
+  const c = document.createElement('canvas'); c.width=128; c.height=128;
+  const ctx = c.getContext('2d');
+  const g = ctx.createRadialGradient(64,64,0,64,64,64);
+  g.addColorStop(0,'rgba(255,255,255,1)');
+  g.addColorStop(0.35,'rgba(255,255,255,0.5)');
+  g.addColorStop(1,'rgba(255,255,255,0)');
+  ctx.fillStyle=g; ctx.fillRect(0,0,128,128);
+  return new THREE.CanvasTexture(c);
+}
+const glowTex = makeGlowTexture();
+const glowSprite = new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex, color:0xfff4e0, transparent:true, blending:THREE.AdditiveBlending, depthWrite:false}));
+glowSprite.scale.set(0,0,0);
+scene.add(glowSprite);
+
+const coreMesh = new THREE.Mesh(
+  new THREE.SphereGeometry(1,24,24),
+  new THREE.MeshBasicMaterial({color:0xfff4e0})
+);
+coreMesh.scale.set(0,0,0);
+scene.add(coreMesh);
+
+/* planet group */
+const planetGroup = new THREE.Group();
+scene.add(planetGroup);
+const ringGroup = new THREE.Group();
+scene.add(ringGroup);
+
+/* ---------------- CAMERA ORBIT/ZOOM CONTROLS ---------------- */
+let camTarget = new THREE.Vector3(0,0,0);
+let desiredTarget = new THREE.Vector3(0,0,0);
+let camAzimuth = 0.7, camPolar = 1.15, camRadius = 420;
+let desiredRadius = 420;
+let dragging = false, lastX=0, lastY=0;
+let pinchStartDist = null, pinchStartRadius = null;
+
+function updateCameraPosition(){
+  camTarget.lerp(desiredTarget, 0.045);
+  camRadius += (desiredRadius-camRadius)*0.08;
+  const x = camTarget.x + camRadius*Math.sin(camPolar)*Math.sin(camAzimuth);
+  const y = camTarget.y + camRadius*Math.cos(camPolar);
+  const z = camTarget.z + camRadius*Math.sin(camPolar)*Math.cos(camAzimuth);
+  camera.position.set(x,y,z);
+  camera.lookAt(camTarget);
+}
+
+function hideHintSoon(){
+  const el = document.getElementById('camHint');
+  setTimeout(()=>{ el.style.opacity='0'; }, 400);
+}
+
+canvas.addEventListener('mousedown', e=>{ dragging=true; lastX=e.clientX; lastY=e.clientY; canvas.classList.add('dragging'); hideHintSoon(); });
+window.addEventListener('mouseup', ()=>{ dragging=false; canvas.classList.remove('dragging'); });
+window.addEventListener('mousemove', e=>{
+  if(!dragging) return;
+  const dx = e.clientX-lastX, dy = e.clientY-lastY;
+  lastX=e.clientX; lastY=e.clientY;
+  camAzimuth -= dx*0.006;
+  camPolar = Math.max(0.25, Math.min(Math.PI-0.25, camPolar - dy*0.006));
+});
+canvas.addEventListener('wheel', e=>{
+  e.preventDefault();
+  desiredRadius = Math.max(50, Math.min(1600, desiredRadius + e.deltaY*0.45));
+  hideHintSoon();
+}, {passive:false});
+
+canvas.addEventListener('touchstart', e=>{
+  hideHintSoon();
+  if(e.touches.length===1){ dragging=true; lastX=e.touches[0].clientX; lastY=e.touches[0].clientY; }
+  else if(e.touches.length===2){
+    dragging=false;
+    pinchStartDist = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
+    pinchStartRadius = desiredRadius;
+  }
+}, {passive:true});
+canvas.addEventListener('touchmove', e=>{
+  if(e.touches.length===1 && dragging){
+    const dx=e.touches[0].clientX-lastX, dy=e.touches[0].clientY-lastY;
+    lastX=e.touches[0].clientX; lastY=e.touches[0].clientY;
+    camAzimuth -= dx*0.006;
+    camPolar = Math.max(0.25, Math.min(Math.PI-0.25, camPolar - dy*0.006));
+  } else if(e.touches.length===2 && pinchStartDist){
+    const d = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
+    desiredRadius = Math.max(50, Math.min(1600, pinchStartRadius * (pinchStartDist/d)));
+  }
+}, {passive:true});
+canvas.addEventListener('touchend', e=>{ if(e.touches.length===0){ dragging=false; pinchStartDist=null; } }, {passive:true});
+
+window.addEventListener('resize', ()=>{
+  W = window.innerWidth; H = window.innerHeight;
+  camera.aspect = W/H; camera.updateProjectionMatrix();
+  renderer.setSize(W,H);
+});
+
+/* ---------------- STAGE DEFINITIONS ---------------- */
+const STAGES = [
+  {id:'singularity', label:'The Singularity', eyebrow:'T + 0 SECONDS · PLANCK EPOCH',
+   summary:'The universe begins in an extremely hot, dense state where our current understanding of physics breaks down. During the Planck epoch (around 10⁻⁴³ seconds after the beginning), quantum effects of gravity are expected to dominate, and the familiar concepts of space and time are still emerging.', dur:2.2},
+  {id:'inflation', label:'Cosmic Inflation', eyebrow:'T + 10⁻³² SECONDS',
+   summary:'A brief period of exponential expansion called inflation rapidly enlarges the universe by an enormous factor. Tiny quantum fluctuations are stretched across cosmic scales, later becoming the density variations that gravity amplifies into galaxies and large-scale structures.', dur:2.8},
+  {id:'plasma', label:'Quark–Gluon Plasma', eyebrow:'T + 10⁻⁶ SECONDS',
+   summary:'At this stage the universe exists as a quark–gluon plasma, a state of matter recreated in particle accelerators today. Temperatures are so extreme that protons and neutrons cannot yet form stable structures, leaving fundamental particles moving freely.', dur:3},
+  {id:'nucleosynthesis', label:'Big Bang Nucleosynthesis', eyebrow:'T + 3 MINUTES',
+   summary:'Protons and neutrons fuse into the first atomic nuclei — hydrogen, helium, trace lithium. This is the universe\'s only primordial fusion event.', dur:3},
+  {id:'recombination', label:'Recombination', eyebrow:'T + 380,000 YEARS',
+   summary:'After roughly 380,000 years, electrons combine with atomic nuclei to create neutral atoms. Light is finally able to travel freely through space, producing the Cosmic Microwave Background, the oldest electromagnetic radiation we can observe.', dur:3},
+  {id:'darkages', label:'Gravitational Clumping', eyebrow:'T + ~200 MILLION YEARS',
+   summary:'During the cosmic dark ages, gravity becomes the architect of structure. Slightly denser regions attract more matter, forming massive clouds of hydrogen and helium that eventually collapse to create the first stars.', dur:4},
+  {id:'collapse', label:'Gravitational Collapse', eyebrow:'SET INITIAL STELLAR MASS →',
+   summary:'When a gas cloud becomes massive enough, gravity overwhelms internal pressure. The collapsing cloud heats up, forming a protostar. Increasing temperature and density prepare the core for nuclear fusion.', dur:3.5},
+  {id:'ignition', label:'Stellar Ignition', eyebrow:'PROTOSTAR → MAIN SEQUENCE',
+   summary:'Once the stellar core reaches temperatures of about 10 million Kelvin, hydrogen nuclei begin fusing into helium through nuclear fusion. The energy released creates outward pressure that balances gravity, establishing a stable main-sequence star.', dur:3},
+  {id:'mainsequence', label:'Main Sequence Burning', eyebrow:'STABLE HYDROGEN FUSION',
+   summary:'Main-sequence stars spend the majority of their lifetime converting hydrogen into helium in their cores. This stage is governed by hydrostatic equilibrium, where gravity pulling inward is balanced by radiation pressure pushing outward. Massive stars consume fuel faster and live shorter lives, while smaller stars can shine for trillions of years.', dur:3.2},
+  {id:'death', label:'', eyebrow:'', summary:'', dur:4},
+  {id:'remnant', label:'', eyebrow:'', summary:'', dur:3.5},
+  {id:'planets', label:'Planet Formation During Stellar Evolution', eyebrow:'PROTOPLANETARY DISK',
+   summary:'Heavy elements forged in the star\'s core — and, for massive stars, scattered by supernova nucleosynthesis — coalesce into a disk that accretes into planets.', dur:5}
+];
+
+let stellarMass = 8.0;
+let fate = 'ns';
+function computeFate(m){ if(m<8) return 'wd'; if(m<20) return 'ns'; return 'bh'; }
+function fateInfo(f){
+  if(f==='wd') return {name:'White Dwarf', cls:'wd', desc:'Core mass stays under the 1.4 M☉ Chandrasekhar limit. Electron degeneracy pressure halts collapse — the core cools as a dense ember.'};
+  if(f==='ns') return {name:'Neutron Star', cls:'ns', desc:'Core exceeds 1.4 M☉ — electrons and protons merge into neutrons. Neutron degeneracy pressure stops collapse at nuclear density.'};
+  return {name:'Black Hole', cls:'bh', desc:'Core exceeds the ≈2.2–3 M☉ TOV limit. No known force halts collapse — spacetime folds in on itself.'};
+}
+function updateFatePanel(){
+  fate = computeFate(stellarMass);
+  const info = fateInfo(fate);
+  const nameEl = document.getElementById('fateName');
+  nameEl.textContent = info.name; nameEl.className='fate-name '+info.cls;
+  document.getElementById('fateDesc').textContent = info.desc;
+}
+
+/* ---------------- PARTICLE STATE (3D) ---------------- */
+let particles = []; // {x,y,z,vx,vy,vz,color:[r,g,b],size,alpha,...}
+function Pt(x,y,z,color,size=2.4,extra={}){ return Object.assign({x,y,z,vx:0,vy:0,vz:0,color,size,alpha:1},extra); }
+function rand(a,b){ return a+Math.random()*(b-a); }
+function randSphereDir(){
+  const theta = Math.random()*Math.PI*2, phi = Math.acos(rand(-1,1));
+  return [Math.sin(phi)*Math.cos(theta), Math.cos(phi), Math.sin(phi)*Math.sin(theta)];
+}
+function dist3(a,b){ return Math.hypot(a.x-b.x,a.y-b.y,a.z-b.z); }
+
+const COL = {
+  hot:[1.0,0.957,0.878], amber:[1.0,0.541,0.239], magenta:[0.937,0.302,0.62],
+  cyan:[0.31,0.847,0.914], indigo:[0.482,0.38,1.0], violet:[0.788,0.659,1.0],
+  cream:[0.914,0.914,0.961], blue:[0.549,0.847,1.0]
+};
+
+let collapseCenter = new THREE.Vector3(60,10,-40);
+let clumps = [];
+let chosenClumpIdx = 0;
+let planets = [];
+
+function clearParticles(){ particles = []; }
+
+/* ---------------- STAGE INIT (3D) ---------------- */
+function initStage(i){
+  const s = STAGES[i];
+  glowSprite.scale.set(0,0,0);
+  coreMesh.scale.set(0,0,0);
+  coreLight.intensity = 0;
+  planetGroup.clear(); ringGroup.clear();
+
+  if(s.id==='singularity'){
+    clearParticles();
+    particles.push(Pt(0,0,0, COL.hot, 6));
+    desiredTarget.set(0,0,0); desiredRadius = 260;
+  }
+  else if(s.id==='inflation'){
+    clearParticles();
+    for(let k=0;k<140;k++){
+      const [dx,dy,dz] = randSphereDir();
+      particles.push(Pt(0,0,0, COL.hot, 2, {dir:[dx,dy,dz], speed: rand(30,140)}));
+    }
+    desiredTarget.set(0,0,0); desiredRadius = 340;
+  }
+  else if(s.id==='plasma'){
+    particles.forEach(p=>{
+      p.color = Math.random()<0.5?COL.magenta:COL.cyan;
+      p.jx=rand(-1,1); p.jy=rand(-1,1); p.jz=rand(-1,1);
+    });
+    while(particles.length<220){
+      particles.push(Pt(rand(-150,150),rand(-100,100),rand(-150,150), Math.random()<0.5?COL.magenta:COL.cyan, 1.8, {jx:rand(-1,1),jy:rand(-1,1),jz:rand(-1,1)}));
+    }
+  }
+  else if(s.id==='nucleosynthesis'){
+    particles.forEach((p,idx)=>{ p.color = idx%5===0?COL.amber:COL.hot; p.jx*=0.55; p.jy*=0.55; p.jz*=0.55; });
+  }
+  else if(s.id==='recombination'){
+    particles.forEach(p=>{ p.color = COL.cream; p.jx*=0.4; p.jy*=0.4; p.jz*=0.4; });
+  }
+  else if(s.id==='darkages'){
+    clumps = [];
+    const n=6;
+    for(let k=0;k<n;k++){
+      const [dx,dy,dz] = randSphereDir();
+      const r = rand(90,160);
+      clumps.push({x:dx*r,y:dy*r*0.5,z:dz*r, mass:rand(1,3)});
+    }
+    chosenClumpIdx = Math.floor(Math.random()*n);
+    particles.forEach(p=>{ p.color = COL.indigo; });
+    desiredRadius = 460;
+  }
+  else if(s.id==='collapse'){
+    const c = clumps[chosenClumpIdx];
+    collapseCenter.set(c.x,c.y,c.z);
+    particles.forEach((p,idx)=>{ p.target = (idx%3!==0) ? c : null; p.color = COL.blue; });
+    desiredTarget.copy(collapseCenter); desiredRadius = 240;
+    document.getElementById('toast').classList.add('show');
+    setTimeout(()=>document.getElementById('toast').classList.remove('show'), 1800);
+  }
+  else if(s.id==='ignition'){
+    particles = particles.filter(p=> dist3(p,collapseCenter) < 70);
+    particles.forEach(p=>{
+      p.color = COL.hot;
+      const vec = new THREE.Vector3(p.x-collapseCenter.x,p.y-collapseCenter.y,p.z-collapseCenter.z);
+      p.orbitR = vec.length()||10;
+      p.orbitAxis = new THREE.Vector3(rand(-1,1),rand(-1,1),rand(-1,1)).normalize();
+      p.orbitAngle = Math.random()*Math.PI*2;
+      p.orbitSpeed = rand(0.5,1.1);
+    });
+    desiredTarget.copy(collapseCenter); desiredRadius = 160;
+  }
+  else if(s.id==='mainsequence'){
+    const starColor = stellarMass<3?COL.amber:stellarMass<15?COL.hot:COL.blue;
+    particles.forEach(p=>{ p.color = starColor; });
+    desiredRadius = 200;
+  }
+  else if(s.id==='death'){
+    if(fate==='wd'){
+      s.label='Red Giant → Planetary Nebula'; s.eyebrow='LOW-MASS STELLAR DEATH';
+      s.summary='Without enough mass to fuse past helium, the star swells into a red giant, then gently sheds its outer layers into a glowing planetary nebula.';
+      particles.forEach(p=>{ const [dx,dy,dz]=randSphereDir(); p.dir=[dx,dy,dz]; p.speed=rand(20,55); p.color=COL.amber; });
+    } else {
+      s.label='Core-Collapse Supernova';
+      s.eyebrow = fate==='ns' ? 'MASSIVE STAR DEATH · 8–20 M☉' : 'MASSIVE STAR DEATH · >20 M☉';
+      s.summary='Fuel runs out, the iron core collapses in under a second, then rebounds in a shockwave that blows the star apart — briefly outshining its entire host galaxy.';
+      particles.forEach(p=>{ const [dx,dy,dz]=randSphereDir(); p.dir=[dx,dy,dz]; p.speed=rand(70,190); p.color=Math.random()<0.5?COL.hot:COL.amber; });
+      for(let k=0;k<160;k++){
+        const [dx,dy,dz]=randSphereDir();
+        particles.push(Pt(collapseCenter.x,collapseCenter.y,collapseCenter.z, Math.random()<0.5?COL.amber:COL.magenta, rand(1,2.2), {dir:[dx,dy,dz], speed:rand(60,210)}));
+      }
+    }
+    desiredRadius = 320;
+  }
+  else if(s.id==='remnant'){
+    if(fate==='wd'){ s.label='White Dwarf'; s.eyebrow='STELLAR CORPSE · ELECTRON-DEGENERATE';
+      s.summary='What remains is an Earth-sized ember of carbon and oxygen, held up against gravity by electron degeneracy pressure. It will cool for trillions of years.'; }
+    else if(fate==='ns'){ s.label='Neutron Star'; s.eyebrow='STELLAR CORPSE · NUCLEAR DENSITY';
+      s.summary='A city-sized sphere of pure neutrons, so dense a teaspoon would weigh billions of tons. Many spin hundreds of times per second as pulsars.'; }
+    else { s.label='Black Hole'; s.eyebrow='EVENT HORIZON FORMED';
+      s.summary='Gravity has won completely. Not even light can escape past the event horizon — spacetime itself has been bent into a one-way door.'; }
+    particles.forEach((p,idx)=>{
+      const vec = new THREE.Vector3(rand(-1,1),rand(-1,1)*0.3,rand(-1,1));
+      p.orbitR = rand(40,130);
+      p.orbitAxis = new THREE.Vector3(0,1,0).applyAxisAngle(new THREE.Vector3(1,0,0), rand(-0.3,0.3));
+      p.orbitAngle = Math.random()*Math.PI*2;
+      p.orbitSpeed = rand(0.3,0.9);
+      p.color = fate==='bh' ? (idx%2===0?COL.magenta:COL.indigo) : (fate==='ns'?COL.violet:COL.cyan);
+    });
+    desiredTarget.copy(collapseCenter); desiredRadius = 200;
+  }
+  else if(s.id==='planets'){
+    planets = [];
+    const n = fate==='bh' ? 0 : (3+Math.floor(Math.random()*3));
+    const colors = [0x8fd6ff,0xff9d5c,0xc9a3ff,0x7ee8b8,0xffd27a];
+    for(let k=0;k<n;k++){
+      planets.push({orbitR:70+k*40+rand(0,10), orbitA:Math.random()*Math.PI*2, orbitSpeed:0.35/(1+k*0.55),
+        r:3.5+Math.random()*4.5, color:colors[k%5], incl:rand(-0.25,0.25)});
+    }
+    desiredRadius = 340;
+  }
+  refreshLog(i);
+}
+
+/* ---------------- STAGE UPDATE (3D) ---------------- */
+function updateStage(i, dt, tNorm){
+  const s = STAGES[i];
+  if(s.id==='singularity'){
+    particles[0].size = 6+Math.sin(performance.now()/220)*1.6;
+  }
+  else if(s.id==='inflation'){
+    particles.forEach(p=>{
+      const grow = 0.3+tNorm*2.4;
+      p.x += p.dir[0]*p.speed*dt*grow; p.y += p.dir[1]*p.speed*dt*grow; p.z += p.dir[2]*p.speed*dt*grow;
+    });
+  }
+  else if(s.id==='plasma'||s.id==='nucleosynthesis'||s.id==='recombination'){
+    const damp = s.id==='recombination'?0.4:1;
+    particles.forEach(p=>{
+      p.x += p.jx*dt*22*damp; p.y += p.jy*dt*22*damp; p.z += p.jz*dt*22*damp;
+      if(Math.abs(p.x)>170) p.jx*=-1;
+      if(Math.abs(p.y)>120) p.jy*=-1;
+      if(Math.abs(p.z)>170) p.jz*=-1;
+      p.jx += -p.x*0.0006*dt*60; p.jy += -p.y*0.0006*dt*60; p.jz += -p.z*0.0006*dt*60;
+    });
+  }
+  else if(s.id==='darkages'){
+    particles.forEach(p=>{
+      let fx=0,fy=0,fz=0;
+      clumps.forEach(c=>{
+        const dx=c.x-p.x, dy=c.y-p.y, dz=c.z-p.z;
+        const d2=Math.max(300, dx*dx+dy*dy+dz*dz);
+        const f = c.mass*900/d2, d=Math.sqrt(d2);
+        fx+=dx*f/d; fy+=dy*f/d; fz+=dz*f/d;
+      });
+      p.vx=(p.vx||0)*0.94+fx*dt; p.vy=(p.vy||0)*0.94+fy*dt; p.vz=(p.vz||0)*0.94+fz*dt;
+      p.x+=p.vx*dt*30; p.y+=p.vy*dt*30; p.z+=p.vz*dt*30;
+    });
+  }
+  else if(s.id==='collapse'){
+    const pull = 0.02+tNorm*0.14;
+    particles.forEach(p=>{
+      if(p.target){ p.x+=(p.target.x-p.x)*pull; p.y+=(p.target.y-p.y)*pull; p.z+=(p.target.z-p.z)*pull; }
+      else { p.x+=(p.x-collapseCenter.x)*0.003; p.y+=(p.y-collapseCenter.y)*0.003; p.z+=(p.z-collapseCenter.z)*0.003; }
+    });
+  }
+  else if(s.id==='ignition'){
+    const shrink = 1-tNorm*0.55;
+    particles.forEach(p=>{
+      p.orbitAngle += p.orbitSpeed*dt*2;
+      const v = new THREE.Vector3(p.orbitR*shrink,0,0).applyAxisAngle(p.orbitAxis, p.orbitAngle);
+      p.x = collapseCenter.x+v.x; p.y = collapseCenter.y+v.y; p.z = collapseCenter.z+v.z;
+    });
+    glowSprite.position.copy(collapseCenter);
+    coreMesh.position.copy(collapseCenter);
+    const sc = 4+tNorm*10;
+    glowSprite.scale.set(sc*7,sc*7,1); coreMesh.scale.set(sc*0.5,sc*0.5,sc*0.5);
+    coreLight.position.copy(collapseCenter); coreLight.intensity = tNorm*2.4;
+  }
+  else if(s.id==='mainsequence'){
+    particles.forEach(p=>{
+      p.orbitAngle += p.orbitSpeed*dt*1.1;
+      const v = new THREE.Vector3(p.orbitR*0.42,0,0).applyAxisAngle(p.orbitAxis, p.orbitAngle);
+      p.x = collapseCenter.x+v.x; p.y = collapseCenter.y+v.y; p.z = collapseCenter.z+v.z;
+    });
+    glowSprite.position.copy(collapseCenter); coreMesh.position.copy(collapseCenter);
+    const massScale = 0.55+Math.min(1.4, stellarMass/20);
+    glowSprite.scale.set(60*massScale,60*massScale,1); coreMesh.scale.set(5*massScale,5*massScale,5*massScale);
+    coreLight.position.copy(collapseCenter); coreLight.intensity = 2.6;
+    coreLight.color.setRGB(...(stellarMass<3?COL.amber:stellarMass<15?COL.hot:COL.blue));
+  }
+  else if(s.id==='death'){
+    if(fate==='wd'){
+      particles.forEach(p=>{
+        const d = tNorm*130;
+        p.x = collapseCenter.x+p.dir[0]*d; p.y = collapseCenter.y+p.dir[1]*d; p.z = collapseCenter.z+p.dir[2]*d;
+        p.alpha = 1-tNorm*0.7;
+      });
+      glowSprite.position.copy(collapseCenter); glowSprite.scale.set(30,30,1); glowSprite.material.opacity = 1-tNorm*0.5;
+    } else {
+      particles.forEach(p=>{
+        const d = p.speed*tNorm;
+        p.x = collapseCenter.x+p.dir[0]*d; p.y = collapseCenter.y+p.dir[1]*d; p.z = collapseCenter.z+p.dir[2]*d;
+        p.alpha = Math.max(0,1-tNorm*0.85);
+      });
+      if(tNorm<0.15){ glowSprite.position.copy(collapseCenter); glowSprite.scale.set(140*(tNorm/0.15),140*(tNorm/0.15),1); }
+      else glowSprite.scale.set(0,0,0);
+    }
+  }
+  else if(s.id==='remnant'){
+    particles.forEach(p=>{
+      p.orbitAngle += p.orbitSpeed*dt*(fate==='bh'?1.5:0.75);
+      let r = p.orbitR;
+      if(fate==='bh') r = Math.max(9, p.orbitR - tNorm*65);
+      const v = new THREE.Vector3(r,0,0).applyAxisAngle(p.orbitAxis, p.orbitAngle);
+      p.x = collapseCenter.x+v.x; p.y = collapseCenter.y+v.y; p.z = collapseCenter.z+v.z;
+      p.alpha = fate==='bh' ? Math.max(0.15,1-tNorm*0.5) : 1;
+    });
+    coreMesh.position.copy(collapseCenter);
+    if(fate==='bh'){
+      coreMesh.material.color.set(0x000000);
+      coreMesh.scale.set(6,6,6);
+      glowSprite.position.copy(collapseCenter); glowSprite.material.color.set(0xef4d9e);
+      glowSprite.scale.set(26,26,1); glowSprite.material.opacity=0.5;
+    } else {
+      coreMesh.material.color.setRGB(...(fate==='ns'?COL.violet:COL.cyan));
+      coreMesh.scale.set(4,4,4);
+      glowSprite.position.copy(collapseCenter); glowSprite.material.color.set(fate==='ns'?0xc9b6ff:0xeaf6ff);
+      glowSprite.scale.set(24,24,1); glowSprite.material.opacity=0.8;
+    }
+  }
+  else if(s.id==='planets'){
+    coreMesh.position.copy(collapseCenter);
+    if(fate==='bh'){ coreMesh.material.color.set(0x000000); coreMesh.scale.set(6,6,6);
+      glowSprite.position.copy(collapseCenter); glowSprite.material.color.set(0xef4d9e); glowSprite.scale.set(22,22,1); glowSprite.material.opacity=0.45; }
+    else { coreMesh.material.color.setRGB(...(fate==='ns'?COL.violet:COL.cyan)); coreMesh.scale.set(4,4,4);
+      glowSprite.position.copy(collapseCenter); glowSprite.material.color.set(fate==='ns'?0xc9b6ff:0xeaf6ff); glowSprite.scale.set(20,20,1); glowSprite.material.opacity=0.75; }
+    coreLight.position.copy(collapseCenter); coreLight.intensity = fate==='bh'?0:1.6;
+
+    planetGroup.clear(); ringGroup.clear();
+    planets.forEach(pl=>{
+      pl.orbitA += pl.orbitSpeed*dt*0.7;
+      const x = collapseCenter.x+Math.cos(pl.orbitA)*pl.orbitR;
+      const z = collapseCenter.z+Math.sin(pl.orbitA)*pl.orbitR;
+      const y = collapseCenter.y+Math.sin(pl.orbitA)*pl.orbitR*Math.sin(pl.incl);
+      const mesh = new THREE.Mesh(new THREE.SphereGeometry(pl.r,16,16), new THREE.MeshStandardMaterial({color:pl.color, roughness:0.6, metalness:0.1}));
+      mesh.position.set(x,y,z);
+      planetGroup.add(mesh);
+
+      const curve = new THREE.EllipseCurve(0,0,pl.orbitR,pl.orbitR,0,Math.PI*2,false,0);
+      const pts = curve.getPoints(64).map(p=>new THREE.Vector3(p.x,0,p.y));
+      const ringGeo = new THREE.BufferGeometry().setFromPoints(pts);
+      const ring = new THREE.LineLoop(ringGeo, new THREE.LineBasicMaterial({color:0xffffff, transparent:true, opacity:0.12}));
+      ring.position.copy(collapseCenter);
+      ring.rotation.x = pl.incl;
+      ringGroup.add(ring);
+    });
+  }
+}
+
+/* ---------------- SYNC BUFFERS ---------------- */
+function syncParticleBuffer(){
+  const n = Math.min(particles.length, MAX_P);
+  for(let i=0;i<n;i++){
+    const p = particles[i];
+    posArr[i*3]=p.x; posArr[i*3+1]=p.y; posArr[i*3+2]=p.z;
+    colArr[i*3]=p.color[0]; colArr[i*3+1]=p.color[1]; colArr[i*3+2]=p.color[2];
+    sizeArr[i]=p.size||2.4;
+    alphaArr[i]= p.alpha!==undefined?p.alpha:1;
+  }
+  pGeo.setDrawRange(0,n);
+  pGeo.attributes.position.needsUpdate = true;
+  pGeo.attributes.aColor.needsUpdate = true;
+  pGeo.attributes.aSize.needsUpdate = true;
+  pGeo.attributes.aAlpha.needsUpdate = true;
+  document.getElementById('pCount').textContent = n + planets.length;
+}
+
+/* ---------------- UI ---------------- */
+let stageIndex = 0;
+let stageT = 0;
+let auto = false;
+let stageSettled = false; // true once intra-stage animation reaches its end state
+
+const stageTitleEl = document.getElementById('stageTitle');
+const stageEyebrowEl = document.getElementById('stageEyebrow');
+const timelineFill = document.getElementById('timelineFill');
+const timelineStops = document.getElementById('timelineStops');
+const logBody = document.getElementById('logBody');
+const nextBtn = document.getElementById('nextBtn');
+const prevBtn = document.getElementById('prevBtn');
+const massSlider = document.getElementById('massSlider');
+const massNum = document.getElementById('massNum');
+
+function buildStops(){
+  timelineStops.innerHTML='';
+  STAGES.forEach((s,idx)=>{
+    const d = document.createElement('div'); d.className='stop';
+    d.addEventListener('click', ()=> jumpTo(idx));
+    timelineStops.appendChild(d);
+  });
+}
+function refreshStops(){
+  [...timelineStops.children].forEach((d,idx)=>{
+    d.classList.toggle('done', idx<stageIndex);
+    d.classList.toggle('current', idx===stageIndex);
+  });
+  timelineFill.style.width = (stageIndex/(STAGES.length-1)*100)+'%';
+}
+function refreshLog(uptoIdx){
+  logBody.innerHTML='';
+  for(let i=0;i<=uptoIdx;i++){
+    const s = STAGES[i];
+    const div = document.createElement('div');
+    div.className = 'log-entry'+(i===uptoIdx?' active':'');
+    div.innerHTML = `<div class="idx">ENTRY ${String(i+1).padStart(2,'0')} — ${s.eyebrow}</div><div class="title">${s.label}</div><div class="body">${s.summary}</div>`;
+    logBody.appendChild(div);
+  }
+  logBody.scrollTop = logBody.scrollHeight;
+}
+function syncStageUI(){
+  const s = STAGES[stageIndex];
+  stageTitleEl.textContent = s.label;
+  stageEyebrowEl.textContent = s.eyebrow;
+  prevBtn.disabled = stageIndex===0;
+  nextBtn.textContent = stageIndex===STAGES.length-1 ? 'SIMULATION COMPLETE' : 'NEXT STAGE ▶';
+  nextBtn.disabled = stageIndex===STAGES.length-1;
+}
+function syncMassLock(){
+  massSlider.disabled = stageIndex > STAGES.findIndex(s=>s.id==='collapse');
+}
+
+function jumpTo(idx){
+  stageIndex = Math.max(0, Math.min(STAGES.length-1, idx));
+  stageT = 0; stageSettled = false;
+  initStage(stageIndex);
+  syncStageUI(); refreshStops(); syncMassLock();
+}
+
+massSlider.addEventListener('input', ()=>{
+  stellarMass = parseFloat(massSlider.value);
+  massNum.textContent = stellarMass.toFixed(1);
+  updateFatePanel();
+});
+updateFatePanel();
+
+nextBtn.addEventListener('click', ()=>{ if(stageIndex<STAGES.length-1) jumpTo(stageIndex+1); });
+prevBtn.addEventListener('click', ()=>{ if(stageIndex>0) jumpTo(stageIndex-1); });
+document.getElementById('restartBtn').addEventListener('click', ()=>{ auto=false; document.getElementById('autoSwitch').classList.remove('on'); jumpTo(0); });
+document.getElementById('autoSwitch').addEventListener('click', function(){
+  auto = !auto; this.classList.toggle('on', auto);
+});
+document.getElementById('startBtn').addEventListener('click', ()=>{
+  document.getElementById('intro').classList.add('hide');
+});
+
+/* ---------------- MAIN LOOP ---------------- */
+let lastT = performance.now();
+function frame(now){
+  const dt = Math.min(0.05, (now-lastT)/1000);
+  lastT = now;
+  requestAnimationFrame(frame);
+
+  const s = STAGES[stageIndex];
+  if(!stageSettled){
+    stageT += dt;
+    const tNorm = Math.min(1, stageT/s.dur);
+    updateStage(stageIndex, dt, tNorm);
+    if(tNorm>=1){
+      stageSettled = true;
+      if(auto && stageIndex<STAGES.length-1){
+        setTimeout(()=>{ if(auto) jumpTo(stageIndex+1); }, 900);
+      }
+    }
+  } else {
+    // idle ambient motion so the settled state still feels alive
+    updateStage(stageIndex, dt, 1);
+  }
+
+  syncParticleBuffer();
+  updateCameraPosition();
+  renderer.render(scene, camera);
+}
+
+/* ---------------- INIT ---------------- */
+buildStops();
+initStage(0);
+syncStageUI();
+refreshStops();
+syncMassLock();
+requestAnimationFrame(frame);
+</script>
+<script>
+
+/* ===== COSMOGENESIS V2 EXPERIENCE ENGINE ===== */
+
+(function(){
+
+const nebula=document.createElement("div");
+nebula.className="nebula-overlay";
+document.body.appendChild(nebula);
+
+const telemetry=document.createElement("div");
+telemetry.className="cosmic-telemetry";
+telemetry.innerHTML=`
+<div class="cosmic-chip" id="universeAge">AGE: 0 YEARS</div>
+<div class="cosmic-chip">SPACETIME: STABLE</div>
+<div class="cosmic-chip" id="energyState">ENERGY: PRIMORDIAL</div>
+`;
+document.body.appendChild(telemetry);
+
+const birth=performance.now();
+
+function updateCosmicClock(){
+ const seconds=(performance.now()-birth)/1000;
+ const age=(seconds*1e9).toFixed(1);
+ document.getElementById("universeAge").textContent=
+ "AGE: "+age+" YEARS";
+
+ requestAnimationFrame(updateCosmicClock);
+}
+updateCosmicClock();
+
+window.showAchievement=function(text){
+ const box=document.createElement("div");
+ box.className="cosmic-achievement";
+ box.textContent="✦ "+text;
+ document.body.appendChild(box);
+ setTimeout(()=>box.remove(),3000);
+};
+
+const oldInit=window.initStage;
+window.cosmicMessages=[
+"No stars. No atoms. Only possibility.",
+"Quantum fluctuations become cosmic architecture.",
+"Gravity begins building the first galaxies.",
+"The universe creates observers to witness itself."
+];
+
+})();
+
+</script>
 </body>
 </html>
